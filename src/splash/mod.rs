@@ -26,21 +26,21 @@ fn splash_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Display the logo
     commands
     // First create a `NodeBundle` for centering what we want to display
-    .spawn_bundle(NodeBundle {
+    .spawn(NodeBundle {
         style: Style {
-            margin: Rect::all(Val::Auto),
-            flex_direction: FlexDirection::ColumnReverse,
+            margin: UiRect::all(Val::Auto),
+            flex_direction: FlexDirection::Column,
             justify_content: JustifyContent::SpaceBetween,
             size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
             align_items: AlignItems::Center,
             ..Default::default()
         },
-        color: Color::rgb(0.1, 0.1, 0.1).into(),
+        background_color: Color::rgb(0.1, 0.1, 0.1).into(),
         ..Default::default()
     })
     .insert(OnSplashScreen)
     .with_children(|parent| {
-        parent.spawn_bundle(ImageBundle {
+        parent.spawn(ImageBundle {
             style: Style {
                 size: Size::new(Val::Px(500.0), Val::Auto),
                 ..Default::default()
@@ -49,19 +49,18 @@ fn splash_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..Default::default()
         });
         
-    parent.spawn_bundle(TextBundle {
+    parent.spawn(TextBundle {
         style: Style {
             ..Default::default()
         },
-        text: Text::with_section(
+        text: Text::from_section(
             "Press SPACE to start",
             TextStyle {
                 font: asset_server.load("fonts/poppins/Poppins-Light.ttf"),
                 font_size: 80.0,
                 color: Color::WHITE,
                 ..Default::default()
-            },
-            Default::default(),
+            }
         ),
         ..Default::default()
     });
