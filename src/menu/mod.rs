@@ -41,47 +41,42 @@ impl fmt::Display for MenuAction {
 fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Display the logo
     commands
-        .spawn_bundle(NodeBundle {
+        .spawn(NodeBundle {
             style: Style {
-                margin: Rect::all(Val::Auto),
-                flex_direction: FlexDirection::ColumnReverse,
-                justify_content: JustifyContent::SpaceAround,
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::SpaceEvenly,
+                size: Size::new(Val::Percent(100.0), Val::Auto),
                 align_items: AlignItems::Center,
                 ..Default::default()
             },
-            color: Color::rgb(0.1, 0.1, 0.1).into(),
             ..Default::default()
         })
         .insert(OnMenuScreen)
         .with_children(|parent| {
             for button in [MenuAction::NewGame,MenuAction::Settings,MenuAction::Quit] {
                 let button_text = button.to_string();
-                parent.spawn_bundle(ButtonBundle {
-                    color: Color::rgb(0.1, 0.1, 0.1).into(),
+                parent.spawn(ButtonBundle {
+                    background_color: Color::rgba(0.0, 0.0, 0.0, 0.0).into(),
                     style: Style {
-                        size: Size::new(Val::Px(400.0), Val::Px(200.0)),
-                        border: Rect::all(Val::Px(5.0)),
+                        border: UiRect::all(Val::Px(5.0)),
                         ..Default::default()
                     },
                     ..Default::default()
                 })
                 .insert(   button)
                 .with_children(|parent| {
-                    //let icon = asset_server.load("textures/Game Icons/exitRight.png");
-                    parent.spawn_bundle(TextBundle {
+                    parent.spawn(TextBundle {
                         style: Style {
                             ..Default::default()
                         },
-                        text: Text::with_section(
+                        text: Text::from_section(
                             button_text,
                             TextStyle {
                                 font: asset_server.load("fonts/poppins/Poppins-Light.ttf"),
                                 font_size: 80.0,
                                 color: Color::WHITE,
                                 ..Default::default()
-                            },
-                            Default::default(),
+                            }
                         ),
                         ..Default::default()
                     });
