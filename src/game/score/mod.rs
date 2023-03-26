@@ -1,8 +1,9 @@
 use bevy::prelude::*;
+use rand::seq::IteratorRandom;
 
 use crate::utils;
 
-use super::TurnState;
+use super::{TurnState, tile::{Tile, TileSet}};
 
 pub struct ScorePlugin;
 
@@ -10,13 +11,10 @@ impl Plugin for ScorePlugin {
     fn build(&self, app: &mut App) {
         app
         .init_resource::<Score>()
-        .add_event::<NextTurnEvent>()
         .add_startup_system(spawn_score)
         .add_system(next_turn);
     }
 }
-
-pub struct NextTurnEvent(TurnState);
 
 #[derive(Default,Resource)]
 pub struct Score {
@@ -53,22 +51,22 @@ pub fn spawn_score(mut commands: Commands, asset_server: Res<AssetServer>) {
             });
         }
 
-pub fn move_to_next_turn(keys: Res<Input<KeyCode>>,mut turn_state: ResMut<State<TurnState>>, mut ev_next_turn: EventWriter<NextTurnEvent>) {
+pub fn move_to_next_turn(mut commands: Commands, keys: Res<Input<KeyCode>>, turn_state: Res<State<TurnState>>) {
     if keys.just_pressed(KeyCode::Space) {
-        println!("Space key pressed!");
-        let next_state = match turn_state.current() {
+        let next_state = match turn_state.0 {
             TurnState::Cpu => TurnState::Player,
             TurnState::Player =>TurnState::Cpu
         };
-        ev_next_turn.send(NextTurnEvent(next_state.clone()));
-        turn_state.set(next_state).unwrap();
+        commands.insert_resource(NextState(Some(next_state)))
     }
 }
 
-pub fn next_turn(mut ev_next_turn: EventReader<NextTurnEvent>, mut score: ResMut<Score>) {
-    for _ in ev_next_turn.iter() {
-        score.score+= 1;
-    }
+pub fn next_turn(mut score: ResMut<Score>, mut tiles: Query<&mut Tile>, mut tile_vec: ResMut<TileSet> ) {
+    let mut rng = rand::thread_rng();
+    score.score+= 1;
+    let  tile = tiles.iter_mut().choose(&mut rng).unwrap();
+    tile_vec.set.insert(tile.clone());
+        
 }
 
 pub fn update_score(score: Res<Score>,mut text_query: Query<&mut Text,With<ScoreDisplay>>) {

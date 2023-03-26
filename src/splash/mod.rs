@@ -6,13 +6,9 @@ pub struct SplashPlugin;
 impl Plugin for SplashPlugin{
     fn build(&self, app: &mut App) {
     app
-    .add_system_set(SystemSet::on_enter(GameState::Splash)
-    .with_system(splash_setup))
-    .add_system_set(SystemSet::on_update(GameState::Splash)
-    .with_system(input))
-    .add_system_set(
-        SystemSet::on_exit(GameState::Splash)
-            .with_system(utils::despawn_screen::<OnSplashScreen>),
+    .add_system(splash_setup.in_schedule(OnEnter(GameState::Splash)))
+    .add_system(input.in_set(OnUpdate(GameState::Splash)))
+    .add_system(utils::despawn_screen::<OnSplashScreen>.in_schedule(OnExit(GameState::Splash))
     );
     
     }
@@ -45,7 +41,7 @@ fn splash_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 size: Size::new(Val::Px(500.0), Val::Auto),
                 ..Default::default()
             },
-            image: UiImage(icon),
+            image: UiImage::new(icon),
             ..Default::default()
         });
         
@@ -70,9 +66,9 @@ fn splash_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 });
 }
 
-fn input(keys: Res<Input<KeyCode>>, mut game_state: ResMut<State<GameState>>){
+fn input(mut commands: Commands, keys: Res<Input<KeyCode>>){
     if keys.just_pressed(KeyCode::Space) {
-        game_state.set(GameState::Menu).unwrap();
+        commands.insert_resource(NextState(Some(GameState::Menu)));
     }
 }
 

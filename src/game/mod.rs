@@ -1,13 +1,14 @@
-use bevy::{prelude::*, ecs::schedule::ShouldRun};
+use bevy::{prelude::*};
 use crate::{ utils};
 use super::{GameState};
 
 mod tile;
 mod score;
 
-#[derive(Clone, Eq, PartialEq, Debug, Hash)]
+#[derive(Default,Clone, Eq, PartialEq, Debug, Hash, States)]
 pub enum TurnState {
     Player,
+    #[default]
     Cpu,
 }
 pub struct GamePlugin;
@@ -15,39 +16,37 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin{
     fn build(&self, app: &mut App) {
     app
-    .add_event::<score::NextTurnEvent>()
     .init_resource::<score::Score>()
-    .add_state(TurnState::Cpu)
-    .add_system_set(SystemSet::on_enter(GameState::Game)
-        .with_system(tile::spawn_tiles)
-        .with_system(score::spawn_score)
-    )
-    .add_system_set(SystemSet::on_enter(TurnState::Cpu)
-        .with_system(score::move_to_next_turn)
-        .with_system(score::next_turn)
-        .with_system(score::update_score)
-        .with_run_criteria(run_if_new_game))
-    
-    .add_system_set(SystemSet::on_update(GameState::Game)
-        .with_system(tile::toggle_tile)
-        .with_system(tile::reset_tile_color)
-    )
-    .add_system_set(SystemSet::on_exit(GameState::Splash)
-        .with_system(utils::despawn_screen::<OnGameScreen>),
-    );
+    .init_resource::<tile::TileSet>()
+    .add_state::<TurnState>()
+    .add_systems(
+        (
+            tile::spawn_tiles,
+            score::spawn_score
+        ).in_schedule(OnEnter(GameState::Game)))
+    .add_systems(
+        (
+            score::move_to_next_turn.run_if(run_if_new_game),
+            score::next_turn.run_if(run_if_new_game),
+            score::update_score.run_if(run_if_new_game),
+            tile::toggle_cpu_tiles.run_if(run_if_new_game)
+        ).in_schedule(OnEnter(TurnState::Cpu)))
+    .add_systems(
+        (
+            tile::interact_tile,
+            tile::reset_tile_color
+        ).in_set(OnUpdate(GameState::Game)))
+    .add_system(utils::despawn_screen::<OnGameScreen>.in_schedule(OnExit(GameState::Splash)))
+    ;
     
     }
 }
 
 fn run_if_new_game(
     app_state: Res<State<GameState>>
-) -> ShouldRun
+) -> bool
 {
-    if *app_state.current() == GameState::Game {
-        ShouldRun::Yes
-    } else {
-        ShouldRun::No
-    }
+    return app_state.0 == GameState::Game;
 }
 
 #[derive(Component)]

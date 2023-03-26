@@ -15,9 +15,9 @@ pub fn build_icons(asset_server: Res<AssetServer>,icon_name: String) -> ButtonBu
 {
     let icon = asset_server.load(format!("{}{}{}","icons/PNG/White/1x/",icon_name,".png"));
     ButtonBundle {
-        image: UiImage {
-            0: icon
-        },
+        image: UiImage { 
+            texture: icon,
+            ..Default::default() },
         style: Style {
             size: Size {
                 height: Val::Px(50.0),

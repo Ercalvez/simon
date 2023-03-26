@@ -8,12 +8,9 @@ pub struct MenuPlugin;
 impl Plugin for MenuPlugin{
     fn build(&self, app: &mut App) {
         app
-        .add_system_set(SystemSet::on_enter(GameState::Menu).with_system(menu_setup))
-        .add_system_set(SystemSet::on_update(GameState::Menu).with_system(menu_action))
-        .add_system_set(
-            SystemSet::on_exit(GameState::Menu)
-                .with_system(utils::despawn_screen::<OnMenuScreen>),
-        );
+        .add_system(menu_setup.in_schedule(OnEnter(GameState::Menu)))
+        .add_system(menu_action.in_set(OnUpdate(GameState::Menu)))
+        .add_system(utils::despawn_screen::<OnMenuScreen>.in_schedule(OnExit(GameState::Menu)));
         }
 }
 #[derive(Component)]
@@ -88,19 +85,19 @@ fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn menu_action(
+    mut commands: Commands,
     interaction_query: Query<
         (&Interaction, &MenuAction),
         (Changed<Interaction>, With<Button>),
     >,
-    mut app_exit_events: EventWriter<AppExit>,
-    mut game_state: ResMut<State<GameState>>,
+    mut app_exit_events: EventWriter<AppExit>
 ) {
     for (interaction, menu_button_action) in interaction_query.iter() {
         if *interaction == Interaction::Clicked {
             match menu_button_action {
                 MenuAction::Quit => app_exit_events.send(AppExit),
                 MenuAction::NewGame => {
-                    game_state.set(GameState::Game).unwrap();
+                    commands.insert_resource(NextState(Some(GameState::Game)));
                 }
                 MenuAction::Settings => (),
             }
