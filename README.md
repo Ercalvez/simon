@@ -1,13 +1,14 @@
 # Simon Game
 
-A Simon memory game written in Rust with [Bevy](https://bevyengine.org/) 0.10.
+A Simon memory game written in Rust with [Bevy](https://bevy.org/) 0.20.
 
 > **Status: work in progress.** You can play basic Simon rounds. Settings,
 > sound, a game-over screen and the high score are not built yet.
 
 ## Running
 
-Requires a recent stable Rust toolchain.
+Requires Rust **1.97.1 or newer** (needed by Bevy 0.20). Run
+`rustup update stable` if your toolchain is older.
 
 ```sh
 cargo run
@@ -72,11 +73,11 @@ src/
   main.rs          App setup, camera, and the top-level GameState (Splash → Menu → Game)
   splash/          Splash screen
   menu/            Main menu
-  game/            Game plugin, game start/end, and the TurnState (Idle / Cpu / Player)
+  game/            Game plugin, game start/end, and the TurnState sub-state (Cpu / Player)
     tile/          Tile spawning, click handling, tile flashing
     sequence/      The sequence, CPU playback, and checking the player's clicks
     score/         Score resource and score display
-  utils/           Screen despawning and the icon-button helper
+  utils/           Shared text style and the icon-button helper
 assets/
   fonts/poppins/   Poppins font (OFL)
   icons/           Kenney game icons (see assets/icons/license.txt)

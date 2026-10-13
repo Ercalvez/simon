@@ -4,8 +4,10 @@ Notes for coding agents working on this repository.
 
 ## Project
 
-A Simon memory game in Rust using **Bevy 0.10** and `rand` 0.8. It has one
+A Simon memory game in Rust using **Bevy 0.20** and `rand` 0.8. It has one
 binary crate and no library target. `Cargo.lock` is gitignored.
+
+Bevy 0.20 needs **Rust 1.97.1 or newer**.
 
 ## Expected behaviour
 
@@ -28,62 +30,72 @@ cargo test       # tests/color_test.rs exists but is empty
 cargo clippy
 ```
 
-`cargo build` should finish with no errors. Right now it gives one
-warning: `utils::Icon` is never used. Don't add new warnings.
+`cargo build` and `cargo clippy` both finish with no warnings. Keep it
+that way.
 
-## Bevy version: stick to the 0.10 API
+## Bevy 0.20 API
 
-The code uses Bevy **0.10** APIs. Don't use newer Bevy syntax or upgrade
-Bevy unless the user asks for it.
+The code targets Bevy **0.20**. Bevy changes a lot between versions, so
+don't copy snippets written for older Bevy. When in doubt, check the 0.20
+source in `~/.cargo/registry/src/*/bevy_*-0.20.0/`.
 
-- Register systems with `add_system(...)`, `add_systems((...))`,
-  `.in_schedule(OnEnter(S))`, `.in_schedule(OnExit(S))`,
-  `.in_set(OnUpdate(S))` and `add_startup_system`. Don't use
-  `add_systems(Update, ...)`.
-- Change state with
-  `commands.insert_resource(NextState(Some(state)))`. Read the current
-  state with `Res<State<S>>` and its `.0` field.
-- Size UI with `Style { size: Size::new(..), position: UiRect {..} }`. Use
-  `Interaction::Clicked`, `Color::rgb`, `Camera2dBundle`, `UiImage::new` and
-  `Text::from_section`.
+- **Systems:** register them with `add_systems(Update, ...)`,
+  `add_systems(OnEnter(S), ...)` and `.run_if(in_state(S))`.
+- **State changes:** use `ResMut<NextState<S>>` with `.set(...)`. Read the
+  current state with `Res<State<S>>` and `.get()`.
+- **Components, not bundles:** spawn tuples of components such as
+  `Node { width, height, left, top, .. }`, `BackgroundColor`,
+  `ImageNode::new`, `Text::new` + `TextFont` + `TextColor`, and `Camera2d`.
+  Colours use `Color::srgb`.
+- **Clicks:** use picking observers,
+  `.observe(|click: On<PointerClick>, ...| ...)` with `click.entity`.
+  Don't use `Interaction`, which is deprecated in 0.20. `Button` comes from
+  `bevy::ui_widgets::Button`.
+- **Messages:** what older Bevy called events are now messages. Use
+  `#[derive(Message)]`, `app.add_message::<M>()`, `MessageWriter::write`
+  and `MessageReader::read`.
+- **Cleanup:** tag screen entities with `DespawnOnExit(GameState::X)`.
+  `despawn()` is recursive.
 
 ## Architecture
 
 - `src/main.rs` holds the `GameState` (`Splash` (default) → `Menu` → `Game`)
   and the camera. It registers `SplashPlugin`, `MenuPlugin` and `GamePlugin`.
-- Each screen is a plugin. It spawns its UI `OnEnter`, tags the root entity
-  with a marker component (`OnSplashScreen`, `OnMenuScreen`), and despawns it
-  `OnExit` with `utils::despawn_screen::<Marker>`. Follow this pattern for new
-  screens, such as Settings.
-- `src/game/mod.rs` defines the `GamePlugin` and the `TurnState`:
-  `Idle` (default, outside a game), `Cpu` and `Player`.
-  - `start_game` (`OnEnter(GameState::Game)`) resets `Score` and `Sequence`
-    and switches to `Cpu`.
-  - `end_game` (`OnExit(GameState::Game)`) switches back to `Idle`.
-  - All game-screen entities are tagged with `OnGameScreen` and despawned on
-    exit.
+- Each screen is a plugin. It spawns its UI `OnEnter` and tags the root
+  entities with `DespawnOnExit(GameState::X)`, so they are removed
+  automatically. Follow this pattern for new screens, such as Settings.
+- `src/game/mod.rs` defines the `GamePlugin` and the `TurnState`, a
+  **sub-state** of `GameState::Game` with `Cpu` (default) and `Player`.
+  - `TurnState` only exists during a game, and every new game starts at
+    `Cpu`.
+  - `start_game` (`OnEnter(GameState::Game)`) resets `Score` and `Sequence`.
+    It runs before `OnEnter(TurnState::Cpu)`.
+  - `end_game` (`OnExit(GameState::Game)`) logs the final score.
 - `src/game/sequence/` holds the `Sequence` resource, an ordered `Vec` of
   tile indices plus the player's position in it, and a `Playback` resource
   (index plus a 1 s repeating timer). It has these systems:
   - `start_cpu_turn` adds a random tile.
   - `play_sequence` lights one tile per tick, then switches to `Player`.
-  - `check_player_input` reads `TileClicked` events. On a mistake it
+  - `check_player_input` reads `TileClicked` messages. On a mistake it
     switches to `GameState::Menu`. When the sequence is complete, it
     increments `Score` and switches to `Cpu`.
 - `src/game/tile/` has the `Tile` component (index, colour, `clicked` flag,
-  a one-shot 0.8 s timer), `TILE_COUNT`, and the `TileClicked` event.
-  - `interact_tile` only runs during `TurnState::Player`, which is how input
-    is blocked while the CPU plays.
+  a one-shot 0.8 s timer), `TILE_COUNT`, and the `TileClicked` message.
+  - `interact_tile` is a `PointerClick` observer on each tile. It ignores
+    clicks unless `TurnState` is `Player`, which is how input is blocked
+    while the CPU plays.
   - `light_tile` flashes a tile white, and `reset_tile_color` restores its
     colour.
-  - Tiles are UI `ButtonBundle`s positioned absolutely in percent on a
+  - Tiles are UI `Button` nodes positioned absolutely in percent on a
     circle, as computed by `resize_tile`.
 - `src/game/score/` has the `Score` resource and the score text
   (`ScoreDisplay`) with a gear icon button. `update_score` refreshes the
   text when `Score` changes.
-- `src/utils/` has `despawn_screen` and `build_icons(asset_server, name)`.
-  The latter returns a 50×50 `ButtonBundle` using
-  `assets/icons/PNG/White/1x/<name>.png`.
+- `src/utils/` has two helpers:
+  - `text(asset_server, value)` returns the shared white 80px Poppins text
+    bundle.
+  - `build_icons(asset_server, name)` returns a 50×50 icon button using
+    `assets/icons/PNG/White/1x/<name>.png`.
 - Assets load by path relative to `assets/`. Text uses
   `fonts/poppins/Poppins-Light.ttf`.
 

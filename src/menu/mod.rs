@@ -1,4 +1,4 @@
-use bevy::{prelude::*, app::AppExit};
+use bevy::{prelude::*, ui_widgets::Button};
 use crate::utils;
 
 use super::{GameState};
@@ -8,15 +8,11 @@ pub struct MenuPlugin;
 impl Plugin for MenuPlugin{
     fn build(&self, app: &mut App) {
         app
-        .add_system(menu_setup.in_schedule(OnEnter(GameState::Menu)))
-        .add_system(menu_action.in_set(OnUpdate(GameState::Menu)))
-        .add_system(utils::despawn_screen::<OnMenuScreen>.in_schedule(OnExit(GameState::Menu)));
+        .add_systems(OnEnter(GameState::Menu), menu_setup);
         }
 }
-#[derive(Component)]
-struct OnMenuScreen;
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 enum MenuAction {
     NewGame,
     Settings,
@@ -25,82 +21,62 @@ enum MenuAction {
 
 impl fmt::Display for MenuAction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        
+
         match self {
             MenuAction::NewGame => write!(f, "New Game"),
             MenuAction::Settings => write!(f, "Settings"),
             MenuAction::Quit => write!(f, "Quit"),
         }
-        
+
     }
 }
 
 fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Display the logo
     commands
-        .spawn(NodeBundle {
-            style: Style {
+        .spawn((
+            Node {
                 flex_direction: FlexDirection::Column,
                 justify_content: JustifyContent::SpaceEvenly,
-                size: Size::new(Val::Percent(100.0), Val::Auto),
+                width: Val::Percent(100.0),
                 align_items: AlignItems::Center,
-                ..Default::default()
+                ..default()
             },
-            ..Default::default()
-        })
-        .insert(OnMenuScreen)
+            DespawnOnExit(GameState::Menu),
+        ))
         .with_children(|parent| {
             for button in [MenuAction::NewGame,MenuAction::Settings,MenuAction::Quit] {
-                let button_text = button.to_string();
-                parent.spawn(ButtonBundle {
-                    background_color: Color::rgba(0.0, 0.0, 0.0, 0.0).into(),
-                    style: Style {
+                parent.spawn((
+                    Button,
+                    Node {
                         border: UiRect::all(Val::Px(5.0)),
-                        ..Default::default()
+                        ..default()
                     },
-                    ..Default::default()
-                })
-                .insert(   button)
+                    button,
+                ))
+                .observe(menu_action)
                 .with_children(|parent| {
-                    parent.spawn(TextBundle {
-                        style: Style {
-                            ..Default::default()
-                        },
-                        text: Text::from_section(
-                            button_text,
-                            TextStyle {
-                                font: asset_server.load("fonts/poppins/Poppins-Light.ttf"),
-                                font_size: 80.0,
-                                color: Color::WHITE,
-                                ..Default::default()
-                            }
-                        ),
-                        ..Default::default()
-                    });
+                    parent.spawn(utils::text(&asset_server, button.to_string()));
                 });
-        
+
         }
-});          
-    
+});
+
 }
 
 fn menu_action(
-    mut commands: Commands,
-    interaction_query: Query<
-        (&Interaction, &MenuAction),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut app_exit_events: EventWriter<AppExit>
+    click: On<PointerClick>,
+    actions: Query<&MenuAction>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut app_exit: MessageWriter<AppExit>
 ) {
-    for (interaction, menu_button_action) in interaction_query.iter() {
-        if *interaction == Interaction::Clicked {
-            match menu_button_action {
-                MenuAction::Quit => app_exit_events.send(AppExit),
-                MenuAction::NewGame => {
-                    commands.insert_resource(NextState(Some(GameState::Game)));
-                }
-                MenuAction::Settings => (),
-            }
+    let Ok(action) = actions.get(click.entity) else {
+        return;
+    };
+    match action {
+        MenuAction::Quit => {
+            app_exit.write(AppExit::Success);
         }
+        MenuAction::NewGame => next_state.set(GameState::Game),
+        MenuAction::Settings => (),
     }
 }

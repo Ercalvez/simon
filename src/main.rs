@@ -1,11 +1,11 @@
-use bevy::{prelude::*, window::PresentMode, ecs::schedule::ScheduleLabel};
+use bevy::{prelude::*, window::PresentMode};
 
 mod game;
 mod menu;
 mod utils;
 mod splash;
 
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States, ScheduleLabel)]
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum GameState {
     #[default]
     Splash,
@@ -15,9 +15,7 @@ pub enum GameState {
 
 
 fn setup_camera(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
-    commands.spawn(UiCameraConfig::default());
-    
+    commands.spawn(Camera2d);
 }
 
 
@@ -34,11 +32,9 @@ fn main() {
             ..default()
         })
     )
-    .insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
-    .add_startup_system(setup_camera)
-    .add_state::<GameState>()
-    .add_plugin(splash::SplashPlugin)
-    .add_plugin(menu::MenuPlugin)
-    .add_plugin(game::GamePlugin)
+    .insert_resource(ClearColor(Color::srgb(0.1, 0.1, 0.1)))
+    .add_systems(Startup, setup_camera)
+    .init_state::<GameState>()
+    .add_plugins((splash::SplashPlugin, menu::MenuPlugin, game::GamePlugin))
     .run();
 }

@@ -1,15 +1,16 @@
 use bevy::{prelude::*};
-use crate::{ utils};
 use super::{GameState};
 
 mod tile;
 mod score;
 mod sequence;
 
-#[derive(Default,Clone, Eq, PartialEq, Debug, Hash, States)]
+/// Whose turn it is. Only exists while `GameState::Game` is active, and starts
+/// with the CPU every time a game starts.
+#[derive(SubStates, Default, Clone, Eq, PartialEq, Debug, Hash)]
+#[source(GameState = GameState::Game)]
 pub enum TurnState {
     #[default]
-    Idle,
     Cpu,
     Player,
 }
@@ -21,51 +22,36 @@ impl Plugin for GamePlugin{
     .init_resource::<score::Score>()
     .init_resource::<sequence::Sequence>()
     .init_resource::<sequence::Playback>()
-    .add_event::<tile::TileClicked>()
-    .add_state::<TurnState>()
+    .add_message::<tile::TileClicked>()
+    .add_sub_state::<TurnState>()
     .add_systems(
+        OnEnter(GameState::Game),
         (
             start_game,
             tile::spawn_tiles,
             score::spawn_score
-        ).in_schedule(OnEnter(GameState::Game)))
-    .add_system(sequence::start_cpu_turn.in_schedule(OnEnter(TurnState::Cpu)))
-    .add_system(sequence::play_sequence.in_set(OnUpdate(TurnState::Cpu)))
-    .add_system(sequence::start_player_turn.in_schedule(OnEnter(TurnState::Player)))
+        ))
+    .add_systems(OnEnter(TurnState::Cpu), sequence::start_cpu_turn)
+    .add_systems(Update, sequence::play_sequence.run_if(in_state(TurnState::Cpu)))
+    .add_systems(OnEnter(TurnState::Player), sequence::start_player_turn)
+    .add_systems(Update, sequence::check_player_input.run_if(in_state(TurnState::Player)))
     .add_systems(
-        (
-            tile::interact_tile,
-            sequence::check_player_input
-        ).chain().in_set(OnUpdate(TurnState::Player)))
-    .add_systems(
+        Update,
         (
             tile::reset_tile_color,
             score::update_score
-        ).in_set(OnUpdate(GameState::Game)))
-    .add_systems(
-        (
-            end_game,
-            utils::despawn_screen::<OnGameScreen>
-        ).in_schedule(OnExit(GameState::Game)))
+        ).run_if(in_state(GameState::Game)))
+    .add_systems(OnExit(GameState::Game), end_game)
     ;
 
     }
 }
 
-fn start_game(
-    mut score: ResMut<score::Score>,
-    mut sequence: ResMut<sequence::Sequence>,
-    mut next_turn: ResMut<NextState<TurnState>>
-) {
+fn start_game(mut score: ResMut<score::Score>, mut sequence: ResMut<sequence::Sequence>) {
     *score = score::Score::default();
     *sequence = sequence::Sequence::default();
-    next_turn.set(TurnState::Cpu);
 }
 
-fn end_game(score: Res<score::Score>, mut next_turn: ResMut<NextState<TurnState>>) {
+fn end_game(score: Res<score::Score>) {
     info!("Game over, score: {}", score.score);
-    next_turn.set(TurnState::Idle);
 }
-
-#[derive(Component)]
-struct OnGameScreen;

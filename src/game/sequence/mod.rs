@@ -66,11 +66,11 @@ pub fn start_player_turn(mut sequence: ResMut<Sequence>) {
 pub fn check_player_input(
     mut sequence: ResMut<Sequence>,
     mut score: ResMut<Score>,
-    mut clicks: EventReader<TileClicked>,
+    mut clicks: MessageReader<TileClicked>,
     mut next_turn: ResMut<NextState<TurnState>>,
     mut next_game: ResMut<NextState<GameState>>
 ) {
-    for click in clicks.iter() {
+    for click in clicks.read() {
         if sequence.tiles.get(sequence.player_index) != Some(&click.0) {
             next_game.set(GameState::Menu);
             break;

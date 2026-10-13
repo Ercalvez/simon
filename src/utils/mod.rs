@@ -1,30 +1,28 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, text::FontSize, ui_widgets::Button};
 
-#[derive(Component)]
-pub struct Icon {
-    pub name: String
+/// White 80px Poppins Light text, the style used across the UI.
+pub fn text(asset_server: &AssetServer, value: impl Into<String>) -> impl Bundle {
+    (
+        Text::new(value),
+        TextFont {
+            font: asset_server.load("fonts/poppins/Poppins-Light.ttf").into(),
+            font_size: FontSize::Px(80.0),
+            ..default()
+        },
+        TextColor(Color::WHITE),
+    )
 }
 
-pub fn despawn_screen<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: Commands) {
-    for entity in to_despawn.iter() {
-        commands.entity(entity).despawn_recursive();
-    }
-}
-
-pub fn build_icons(asset_server: Res<AssetServer>,icon_name: String) -> ButtonBundle
+pub fn build_icons(asset_server: &AssetServer, icon_name: &str) -> impl Bundle
 {
     let icon = asset_server.load(format!("{}{}{}","icons/PNG/White/1x/",icon_name,".png"));
-    ButtonBundle {
-        image: UiImage { 
-            texture: icon,
-            ..Default::default() },
-        style: Style {
-            size: Size {
-                height: Val::Px(50.0),
-                width: Val::Px(50.0)
-            },
-            ..Default::default()
+    (
+        Button,
+        ImageNode::new(icon),
+        Node {
+            width: Val::Px(50.0),
+            height: Val::Px(50.0),
+            ..default()
         },
-        ..default()
-    }
+    )
 }
