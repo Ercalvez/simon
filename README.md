@@ -2,9 +2,8 @@
 
 A Simon memory game written in Rust with [Bevy](https://bevyengine.org/) 0.10.
 
-> **Status: work in progress.** The screens and the tile board are in place,
-> but the Simon game loop (play a sequence, check the player's input, game
-> over) is not finished yet.
+> **Status: work in progress.** You can play basic Simon rounds. Settings,
+> sound, a game-over screen and the high score are not built yet.
 
 ## Running
 
@@ -27,11 +26,16 @@ development packages, plus a Vulkan-capable driver). See Bevy's
    - **Settings** is a placeholder that does nothing yet.
    - **Quit** closes the window.
 3. **Game screen.**
-   - Six coloured tiles (red, green, blue, yellow, magenta and cyan) are laid
-     out in a circle.
-   - Clicking a tile flashes it white for 0.8 s, then it returns to its
-     colour.
-   - A score label and a gear (settings) icon sit at the top. The gear does
+   - Four coloured tiles (red, green, blue and yellow) are laid out in a
+     circle.
+   - The CPU adds one random tile to the sequence and plays back the whole
+     sequence. Each tile flashes white for 0.8 s, one per second. Clicks are
+     ignored during playback.
+   - Then you repeat the sequence by clicking the tiles. Each correct round
+     adds 1 to the score, and the next round starts automatically.
+   - A wrong click ends the game and returns to the main menu. The final
+     score is written to the log.
+   - The score label and a gear (settings) icon sit at the top. The gear does
      nothing yet.
 
 ## Target gameplay
@@ -54,11 +58,10 @@ The full spec is in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md). In short:
 
 ## Not done yet
 
-- Making the CPU play a growing sequence and switching between the CPU's
-  turn and the player's turn (partly written, see `src/game/`).
-- Checking the player's clicks against the sequence, and a game-over state.
-- Keeping the score up to date.
-- The Settings screen.
+- The game-over screen (a mistake currently goes straight back to the menu).
+- The saved high score.
+- The Settings screen (number of tiles, sound) and the gear icon's pause.
+- A tone for each tile.
 - Custom tile shaders (`assets/shaders/` is a stub).
 - Tests (`tests/color_test.rs` is empty).
 
@@ -69,9 +72,10 @@ src/
   main.rs          App setup, camera, and the top-level GameState (Splash → Menu → Game)
   splash/          Splash screen
   menu/            Main menu
-  game/            Game plugin and the TurnState (Cpu / Player)
-    tile/          Tile spawning, click handling, colour reset
-    score/         Score resource, score display, CPU sequence step
+  game/            Game plugin, game start/end, and the TurnState (Idle / Cpu / Player)
+    tile/          Tile spawning, click handling, tile flashing
+    sequence/      The sequence, CPU playback, and checking the player's clicks
+    score/         Score resource and score display
   utils/           Screen despawning and the icon-button helper
 assets/
   fonts/poppins/   Poppins font (OFL)

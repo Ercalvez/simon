@@ -15,8 +15,8 @@ persistence. Read it before you change gameplay. If the user decides
 something new about the game's behaviour, update that file, including its
 "Open points" section. Some decisions there differ from the current code:
 
-- The default board has **4** tiles, not the current 6.
-- The sequence must be an ordered `Vec`.
+- The board size is the `TILE_COUNT` constant (4). It is not configurable
+  yet.
 - Only the high score is saved. Settings are not.
 
 ## Commands
@@ -28,9 +28,8 @@ cargo test       # tests/color_test.rs exists but is empty
 cargo clippy
 ```
 
-`cargo build` should finish with no errors. Right now it gives 3 warnings:
-an unneeded `mut` in `tile/mod.rs`, `ScorePlugin` is never used, and
-`utils::Icon` is never used. Don't add new warnings.
+`cargo build` should finish with no errors. Right now it gives one
+warning: `utils::Icon` is never used. Don't add new warnings.
 
 ## Bevy version: stick to the 0.10 API
 
@@ -56,17 +55,32 @@ Bevy unless the user asks for it.
   with a marker component (`OnSplashScreen`, `OnMenuScreen`), and despawns it
   `OnExit` with `utils::despawn_screen::<Marker>`. Follow this pattern for new
   screens, such as Settings.
-- `src/game/mod.rs` defines the `GamePlugin` and the `TurnState`
-  (`Cpu` (default) / `Player`). Systems in `OnEnter(TurnState::Cpu)` are
-  gated by `run_if_new_game`, which checks that `GameState == Game`.
+- `src/game/mod.rs` defines the `GamePlugin` and the `TurnState`:
+  `Idle` (default, outside a game), `Cpu` and `Player`.
+  - `start_game` (`OnEnter(GameState::Game)`) resets `Score` and `Sequence`
+    and switches to `Cpu`.
+  - `end_game` (`OnExit(GameState::Game)`) switches back to `Idle`.
+  - All game-screen entities are tagged with `OnGameScreen` and despawned on
+    exit.
+- `src/game/sequence/` holds the `Sequence` resource, an ordered `Vec` of
+  tile indices plus the player's position in it, and a `Playback` resource
+  (index plus a 1 s repeating timer). It has these systems:
+  - `start_cpu_turn` adds a random tile.
+  - `play_sequence` lights one tile per tick, then switches to `Player`.
+  - `check_player_input` reads `TileClicked` events. On a mistake it
+    switches to `GameState::Menu`. When the sequence is complete, it
+    increments `Score` and switches to `Cpu`.
 - `src/game/tile/` has the `Tile` component (index, colour, `clicked` flag,
-  0.8 s timer), the `TileSet` resource, and the tile systems. Tiles are UI
-  `ButtonBundle`s positioned absolutely in percent on a circle, as computed
-  by `resize_tile`. `Tile` equality is by `index` only.
-- `src/game/score/` has the `Score` resource, the score text (`ScoreDisplay`)
-  with a gear icon button, `next_turn` (adds a random tile to `TileSet` and
-  increments the score) and `move_to_next_turn` (<kbd>Space</kbd> toggles the
-  `TurnState`).
+  a one-shot 0.8 s timer), `TILE_COUNT`, and the `TileClicked` event.
+  - `interact_tile` only runs during `TurnState::Player`, which is how input
+    is blocked while the CPU plays.
+  - `light_tile` flashes a tile white, and `reset_tile_color` restores its
+    colour.
+  - Tiles are UI `ButtonBundle`s positioned absolutely in percent on a
+    circle, as computed by `resize_tile`.
+- `src/game/score/` has the `Score` resource and the score text
+  (`ScoreDisplay`) with a gear icon button. `update_score` refreshes the
+  text when `Score` changes.
 - `src/utils/` has `despawn_screen` and `build_icons(asset_server, name)`.
   The latter returns a 50×50 `ButtonBundle` using
   `assets/icons/PNG/White/1x/<name>.png`.
@@ -77,23 +91,10 @@ Bevy unless the user asks for it.
 
 Keep these in mind when you change code nearby. Fix them only when asked.
 
-- **The turn loop doesn't run in practice.** `move_to_next_turn` is
-  registered in `OnEnter(TurnState::Cpu)`, so it only runs during the one
-  frame when that state is entered. `TurnState` starts as `Cpu`, so that
-  first entry happens at app start, while `run_if_new_game` is still false.
-  As a result, `next_turn`, `update_score` and `toggle_cpu_tiles` never run
-  during a game, and the score label stays "Score".
-- `TileSet` is a `HashSet`, so the CPU "sequence" has no order and can't
-  repeat a colour. A real Simon game needs an ordered `Vec`.
-- Player clicks are not checked against the sequence, and there is no game
-  over.
-- `GamePlugin` despawns `OnGameScreen` on `OnExit(GameState::Splash)`
-  (wrong state), and nothing is tagged with `OnGameScreen`. Game UI is never
-  cleaned up.
-- `ScorePlugin` is defined but never added. `GamePlugin` registers the score
-  systems directly.
+- A mistake goes straight back to the main menu. The game-over screen from
+  the spec doesn't exist yet.
+- The high score isn't saved, and there are no tile tones.
 - The menu's Settings button and the gear icon do nothing.
-- `toggle_cpu_tiles` still contains debug `println!` calls.
 - `assets/shaders/tile_fragment.wgsl` uses outdated `@stage(fragment)`
   syntax, `tile_vertex.wgsl` is empty, and neither file is loaded.
 - `tests/color_test.rs` is empty.

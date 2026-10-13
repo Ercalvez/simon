@@ -1,11 +1,14 @@
 use std::{f32::consts::PI, hash::Hash};
-use bevy::{prelude::*, utils::HashSet};
+use bevy::prelude::*;
+use super::OnGameScreen;
 const RED: Color = Color::rgb(1.0, 0.0, 0.0);
 const GREEN: Color = Color::rgb(0.0, 1.0, 0.0);
 const BLUE: Color = Color::rgb(0.0, 0.0, 1.0);
 const YELLOW: Color = Color::rgb(1.0, 1.0, 0.0);
 const MAGENTA: Color = Color::rgb(1.0, 0.0, 1.0);
 const CYAN: Color = Color::rgb(0.0, 1.0, 1.0);
+const COLORS: [Color; 6] = [RED,GREEN,BLUE,YELLOW,MAGENTA,CYAN];
+pub const TILE_COUNT: usize = 4;
 
 #[derive(Component,Debug, Clone)]
 pub struct Tile{
@@ -26,15 +29,11 @@ impl Eq for Tile {}
 impl Hash for Tile {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.index.hash(state);
-        self.clicked.hash(state);
     }
 }
 
-
-#[derive(Default,Debug,Resource)]
-pub struct TileSet {
-    pub set: HashSet<Tile>
-}
+/// Sent when the player clicks a tile, with the tile index.
+pub struct TileClicked(pub usize);
 
 
 fn resize_tile(index: usize, number_of_tile: usize) -> Transform {
@@ -45,10 +44,8 @@ fn resize_tile(index: usize, number_of_tile: usize) -> Transform {
 }
 
 pub fn spawn_tiles(mut commands: Commands){
-    let colors = [RED,GREEN,BLUE,YELLOW,MAGENTA,CYAN];
-    let color_size = colors.len();
-    for (index, col) in colors.into_iter().enumerate(){
-        let transform = resize_tile(index, color_size);
+    for (index, col) in COLORS.into_iter().take(TILE_COUNT).enumerate(){
+        let transform = resize_tile(index, TILE_COUNT);
         let background_color = BackgroundColor::from(col);
         commands.spawn(ButtonBundle {
 
@@ -73,43 +70,36 @@ pub fn spawn_tiles(mut commands: Commands){
                 index,
                 color: col,
                 clicked: false,
-                timer: Timer::from_seconds(0.8,TimerMode::Repeating)
-        });
+                timer: Timer::from_seconds(0.8,TimerMode::Once)
+        })
+        .insert(OnGameScreen);
     }
     
 }
 
-pub fn toggle_tile(mut tile: &mut Tile, background_color: &mut BackgroundColor) {
+pub fn light_tile(tile: &mut Tile, background_color: &mut BackgroundColor) {
     tile.clicked = true;
+    tile.timer.reset();
     *background_color = BackgroundColor::from(Color::WHITE);
 }
 
 pub fn interact_tile(
-    mut interaction_query: Query<(&Interaction, &mut BackgroundColor, &mut Tile),Changed<Interaction>>) {
+    mut interaction_query: Query<(&Interaction, &mut BackgroundColor, &mut Tile),Changed<Interaction>>,
+    mut clicks: EventWriter<TileClicked>) {
         for (interaction ,mut color, mut tile) in interaction_query.iter_mut() {
             if *interaction == Interaction::Clicked {
-                toggle_tile(&mut tile,&mut color);
-        }
-    }
-}
-
-pub fn toggle_cpu_tiles(tile_set: ResMut<TileSet>,mut query: Query<(&mut Tile, &mut BackgroundColor)>) {
-    println!("===========================================");
-    for (mut tile,mut background_color) in query.iter_mut() {
-        if tile_set.set.iter().any(|tile2| { tile2.index == tile.index}){
-            println!("{:?}",tile.color);
-            toggle_tile(&mut tile,&mut background_color);
-
+                light_tile(&mut tile,&mut color);
+                clicks.send(TileClicked(tile.index));
         }
     }
 }
 
 pub fn reset_tile_color(mut tile_query: Query<(&mut BackgroundColor, &mut Tile)>,time: Res<Time>) {
     for (mut color, mut tile) in tile_query.iter_mut() {
-        if tile.clicked {
-            tile.timer.tick(time.delta());
+        if !tile.clicked {
+            continue;
         }
-        if tile.timer.finished() {
+        if tile.timer.tick(time.delta()).finished() {
             (*color).0 =tile.color;
             tile.clicked = false;
         }
