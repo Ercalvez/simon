@@ -7,6 +7,18 @@ Notes for coding agents working on this repository.
 A Simon memory game in Rust using **Bevy 0.10** and `rand` 0.8. It has one
 binary crate and no library target. `Cargo.lock` is gitignored.
 
+## Expected behaviour
+
+[docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) is the source of truth for how
+the game should behave: rules, turns, score, game over, settings and
+persistence. Read it before you change gameplay. If the user decides
+something new about the game's behaviour, update that file, including its
+"Open points" section. Some decisions there differ from the current code:
+
+- The default board has **4** tiles, not the current 6.
+- The sequence must be an ordered `Vec`.
+- Only the high score is saved. Settings are not.
+
 ## Commands
 
 ```sh
@@ -94,4 +106,5 @@ Keep these in mind when you change code nearby. Fix them only when asked.
 - Don't add or modify files under `assets/icons/` or `assets/fonts/`. They
   are third-party packs (Kenney CC0, Poppins OFL).
 - When gameplay changes, update `README.md` ("What works today" /
-  "Not done yet") and the "Known gaps" list above.
+  "Not done yet") and the "Known gaps" list above. If the intended
+  behaviour changes, update `docs/GAME_DESIGN.md` too.

@@ -34,6 +34,24 @@ development packages, plus a Vulkan-capable driver). See Bevy's
    - A score label and a gear (settings) icon sit at the top. The gear does
      nothing yet.
 
+## Target gameplay
+
+The full spec is in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md). In short:
+
+- Classic Simon. Each round adds one random tile to the sequence, and the
+  CPU plays the whole sequence back. Then the player repeats it with the
+  mouse.
+- Turns switch automatically. Player input is ignored while the CPU is
+  playing.
+- One wrong click ends the game. A game-over screen shows the score and the
+  high score, with **Play again** and **Main menu** buttons.
+- Score = rounds completed. The high score is saved between sessions.
+- Settings:
+  - number of tiles, from 3 to 8 (default 4),
+  - sound on/off (each tile has its own tone).
+
+  The gear icon pauses the game and opens Settings.
+
 ## Not done yet
 
 - Making the CPU play a growing sequence and switching between the CPU's
